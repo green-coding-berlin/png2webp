@@ -41,6 +41,16 @@ else
     exit 1
 fi
 
+get_file_size() {
+    local file_path=$1
+
+    case "$(uname -s)" in
+        Linux*)     stat -c%s "$file_path" ;;
+        Darwin*)    stat -f%z "$file_path" ;;
+        *)          echo "Unsupported OS" >&2; exit 1 ;;
+    esac
+}
+
 if [[ "$INPUT" == http://* ]] || [[ "$INPUT" == https://* ]] || [[ "$INPUT" == git://* ]]; then
     REPO_URL=$INPUT
     REPO_NAME=$(basename "$REPO_URL" .git)
@@ -62,18 +72,24 @@ else
 fi
 
 replace_references() {
-
     local original_path=$2
     local original_file=$(basename "$1")
     local new_file=$(basename "$2")
 
     if grep_output=$(grep -Rl --exclude-dir=".git" --exclude="*.webp" --exclude="*$(basename "$0")" "$original_file" .); then
-        echo "$grep_output" | tr '\n' '\0' | xargs -0 sed -i '' "s|$original_file|$new_file|g"
+        case "$(uname -s)" in
+            Linux*)
+                echo "$grep_output" | tr '\n' '\0' | xargs -0 sed -i "s|$original_file|$new_file|g" ;;
+            Darwin*)
+                echo "$grep_output" | tr '\n' '\0' | xargs -0 sed -i '' "s|$original_file|$new_file|g" ;;
+            *)
+                echo "Unsupported OS" >&2; exit 1 ;;
+        esac
     else
         echo "No references to $original_file found."
         if [ "$DELETE_FILE" = true ]; then
             if ! grep_webp_output=$(grep -Rl --exclude-dir=".git" --exclude="*.webp" --exclude="*$(basename "$0")" "$new_file" .); then
-                local original_size=$(stat -f%z "$original_path")
+                local original_size=$(get_file_size "$original_path")
                 TOTAL_UNREFERENCED=$((TOTAL_UNREFERENCED + original_size))
                 rm "$original_path"
                 echo "Deleted: $original_path"
@@ -89,8 +105,8 @@ convert_to_webp() {
     echo "Converting $img_file -> $new_file"
     cwebp -mt -quiet -q "$WEBP_QUALITY" "$img_file" -o "$new_file"
 
-    local original_size=$(stat -f%z "$img_file")
-    local webp_size=$(stat -f%z "$new_file")
+    local original_size=$(get_file_size "$img_file")
+    local webp_size=$(get_file_size "$new_file")
 
     TOTAL_ORIGINAL_SIZE=$((TOTAL_ORIGINAL_SIZE + original_size))
     TOTAL_WEBP_SIZE=$((TOTAL_WEBP_SIZE + webp_size))

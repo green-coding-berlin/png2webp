@@ -18,3 +18,12 @@ git clone https://github.com/green-coding-berlin/png2webp.git
 cd png2webp
 chmod a+x png2webp.sh
 ```
+
+## Docker
+
+You can also use the script as a docker container.
+
+```
+docker build -t png2webp .
+docker run --rm png2webp https://github.com/green-coding-berlin/website.git
+```
