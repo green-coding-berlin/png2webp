@@ -5,6 +5,7 @@ set -euo pipefail
 # These can be set with paramters
 WEBP_QUALITY=80
 DELETE_FILE=false
+CHECKS_ENABLED=false
 
 # Vars to hold the sums of filesizes
 TOTAL_ORIGINAL_SIZE=0
@@ -14,6 +15,7 @@ TOTAL_UNREFERENCED=0
 while getopts "dq:" opt; do
   case $opt in
     d) DELETE_FILE=true ;;
+    c) CHECKS_ENABLED=true ;;
     q) WEBP_QUALITY="$OPTARG"
        if ! [[ "$WEBP_QUALITY" =~ ^[0-9]+$ ]]; then
          echo "Error: Quality must be an integer."
@@ -130,6 +132,30 @@ while IFS= read -r -d $'\0' img_file; do
     fi
     echo ""
 done < <(find . -type f \( -iname "*.png" -o -iname "*.jpg" \) -print0)
+
+if [ "$CHECKS_ENABLED" = true ]; then
+    search_files() {
+        local pattern=$1
+        grep -ri "$pattern" .
+    }
+
+    png_files=$(search_files '\.png')
+    jpg_files=$(search_files '\.jpg')
+
+    if [ -n "$png_files" ]; then
+        echo "This tool can only do as much. If you are dynamically creating file names in your code this can not be detected."
+        echo "Found references to .png files in the following files. Please check if file names are created here in code:"
+        echo "$png_files"
+        echo
+    fi
+
+    if [ -n "$jpg_files" ]; then
+        echo "This tool can only do as much. If you are dynamically creating file names in your code this can not be detected."
+        echo "Found references to .jpg files in the following files. Please check if file names are created here in code:"
+        echo "$jpg_files"
+        echo
+    fi
+fi
 
 TOTAL_ORIGINAL_SIZE_MB=$(echo "scale=2; $TOTAL_ORIGINAL_SIZE / 1048576" | bc)
 TOTAL_WEBP_SIZE_MB=$(echo "scale=2; $TOTAL_WEBP_SIZE / 1048576" | bc)
