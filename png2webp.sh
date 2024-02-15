@@ -103,7 +103,10 @@ convert_to_webp() {
     local new_file=$2
 
     echo "Converting $img_file -> $new_file"
-    cwebp -mt -quiet -q "$WEBP_QUALITY" "$img_file" -o "$new_file"
+    if ! cwebp -mt -quiet -q "$WEBP_QUALITY" "$img_file" -o "$new_file"; then
+        echo "Conversion failed for $img_file. Skipping..."
+        return 1
+    fi
 
     local original_size=$(get_file_size "$img_file")
     local webp_size=$(get_file_size "$new_file")
@@ -120,8 +123,11 @@ convert_to_webp() {
 while IFS= read -r -d $'\0' img_file; do
     original_file="${img_file#./}"
     new_file="${original_file%.*}.webp"
-    convert_to_webp "$original_file" "$new_file"
-    replace_references "$original_file" "$new_file"
+    if convert_to_webp "$original_file" "$new_file"; then
+        replace_references "$original_file" "$new_file"
+    else
+        echo "Skipping replacement for $original_file due to conversion failure."
+    fi
     echo ""
 done < <(find . -type f \( -iname "*.png" -o -iname "*.jpg" \) -print0)
 
